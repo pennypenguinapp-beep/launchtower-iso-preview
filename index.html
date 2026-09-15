@@ -193,6 +193,8 @@
       <input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
     </div>
 
+    <button class="btn btn-ghost" id="loadExample" style="margin-top:0">Load example</button>
+
     <div class="field">
       <label for="zoom">Zoom</label>
       <div class="row">
@@ -264,6 +266,83 @@
     zoomVal.textContent = zoomEl.value + "×";
     heightVal.textContent = heightEl.value + "%";
     shadeVal.textContent = shadeEl.value + "%";
+  }
+
+  function loadImage(file) {
+    if (!file || !file.type || file.type.indexOf("image/") !== 0) {
+      statusEl.innerHTML = "Please choose an image file (PNG, JPG, GIF, WebP).";
+      return;
+    }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      src = img;
+      srcW = img.naturalWidth;
+      srcH = img.naturalHeight;
+      var c = document.createElement("canvas");
+      c.width = srcW; c.height = srcH;
+      var cx = c.getContext("2d");
+      cx.drawImage(img, 0, 0);
+      srcData = cx.getImageData(0, 0, srcW, srcH).data;
+      URL.revokeObjectURL(url);
+      dropzone.classList.add("loaded");
+      dzLabel.textContent = file.name + " (" + srcW + "\u00d7" + srcH + ")";
+      downloadBtn.disabled = false;
+      render();
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      statusEl.innerHTML = "Could not read that image. Try a PNG or JPG.";
+    };
+    img.src = url;
+  }
+
+  function loadImageFromSource(img, name) {
+    src = img;
+    srcW = img.naturalWidth;
+    srcH = img.naturalHeight;
+    var c = document.createElement("canvas");
+    c.width = srcW; c.height = srcH;
+    var cx = c.getContext("2d");
+    cx.drawImage(img, 0, 0);
+    srcData = cx.getImageData(0, 0, srcW, srcH).data;
+    dropzone.classList.add("loaded");
+    dzLabel.textContent = name + " (" + srcW + "\u00d7" + srcH + ")";
+    downloadBtn.disabled = false;
+    render();
+  }
+
+  function makeExampleImage() {
+    // 64x32 sheet of eight 16x16 tiles, each a distinct color with a simple shape.
+    var c = document.createElement("canvas");
+    c.width = 64; c.height = 32;
+    var x = c.getContext("2d");
+    var colors = ["#e05d5d", "#e0a35d", "#e0d95d", "#8fd96a", "#5dc9e0", "#6a8fe0", "#b06ae0", "#e06ab8"];
+    for (var i = 0; i < 8; i++) {
+      var ox = i * 16;
+      x.fillStyle = colors[i];
+      x.fillRect(ox, 0, 16, 16);
+      // simple shape: a 4x4 square in the middle, darker shade
+      x.fillStyle = "rgba(0,0,0,0.35)";
+      x.fillRect(ox + 6, 6, 4, 4);
+      // a 2x2 highlight top-left
+      x.fillStyle = "rgba(255,255,255,0.5)";
+      x.fillRect(ox + 2, 2, 2, 2);
+    }
+    // second row: checkerboard pattern
+    for (var j = 0; j < 16; j++) {
+      for (var k = 0; k < 2; k++) {
+        if ((j + k) % 2 === 0) {
+          x.fillStyle = "rgba(255,255,255,0.25)";
+        } else {
+          x.fillStyle = "rgba(0,0,0,0.25)";
+        }
+        x.fillRect(j * 4, 16 + k * 8, 4, 8);
+      }
+    }
+    var img = new Image();
+    img.src = c.toDataURL("image/png");
+    return img;
   }
 
   function loadImage(file) {
@@ -435,6 +514,12 @@
   }
 
   // --- Events ---
+  document.getElementById("loadExample").addEventListener("click", function () {
+    var img = makeExampleImage();
+    img.onload = function () {
+      loadImageFromSource(img, "example-sheet");
+    };
+  });
   dropzone.addEventListener("click", function () { fileInput.click(); });
   dropzone.addEventListener("keydown", function (e) {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
