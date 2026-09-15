@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iso Tile Preview — LaunchTower</title>
+<style>
+  :root {
+    --bg: #14161c;
+    --panel: #1d2029;
+    --panel2: #232734;
+    --border: #2f3444;
+    --text: #e8eaf0;
+    --muted: #9aa1b5;
+    --accent: #5eead4;
+    --accent2: #7dd3fc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+  }
+  header h1 span { color: var(--accent); }
+  header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+  }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 0;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .controls {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 22px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--panel2);
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: #263041;
+  }
+  .dropzone .big { font-size: 1.6rem; margin-bottom: 6px; }
+  .dropzone .label { font-size: 0.9rem; font-weight: 600; }
+  .dropzone .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .dropzone.loaded .label { color: var(--accent); }
+  .field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+  }
+  .field .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 4px;
+  }
+  .val {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    min-width: 44px;
+    text-align: right;
+    color: var(--accent2);
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 650;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.05s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: var(--accent);
+    color: #0b1220;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-primary:disabled {
+    background: #3a4152;
+    color: #7a8199;
+    cursor: not-allowed;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    margin-top: 8px;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .stage {
+    background:
+      radial-gradient(1200px 500px at 70% -10%, #1c2333 0%, transparent 60%),
+      #101218;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow: auto;
+    min-height: 420px;
+  }
+  .stage canvas {
+    max-width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    border-radius: 6px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .placeholder {
+    color: #4a5168;
+    text-align: center;
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+  .placeholder .glyph { font-size: 2.6rem; display: block; margin-bottom: 10px; }
+  .status {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 8px 12px 20px;
+  }
+  .status b { color: var(--accent2); font-weight: 600; }
+  footer {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 14px 20px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; }
+    .controls { border-right: none; border-bottom: 1px solid var(--border); }
+    .stage { min-height: 300px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Iso <span>Tile Preview</span></h1>
+  <p>Project a top-down tile or small map into a 2:1 isometric view, then export it as a PNG.</p>
+</header>
+
+<main>
+  <section class="controls">
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload a tile image">
+      <div class="big">🗺️</div>
+      <div class="label" id="dzLabel">Drop a tile / map image</div>
+      <div class="hint">or click to browse — PNG, JPG, GIF, WebP</div>
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+    </div>
+
+    <div class="field">
+      <label for="zoom">Zoom</label>
+      <div class="row">
+        <input type="range" id="zoom" min="1" max="16" step="1" value="4">
+        <span class="val" id="zoomVal">4×</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="height">Tile height (depth)</label>
+      <div class="row">
+        <input type="range" id="height" min="0" max="100" step="1" value="25">
+        <span class="val" id="heightVal">25%</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="shade">Side shading</label>
+      <div class="row">
+        <input type="range" id="shade" min="0" max="80" step="1" value="35">
+        <span class="val" id="shadeVal">35%</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="downloadBtn" disabled>Download ISO PNG</button>
+    <button class="btn btn-ghost" id="resetBtn">Reset image</button>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="placeholder" id="placeholder">
+      <span class="glyph">◇</span>
+      Upload a top-down tile or small map<br>to see the isometric preview here.
+    </div>
+    <canvas id="canvas" hidden></canvas>
+  </section>
+</main>
+
+<div class="status" id="status"></div>
+
+<footer>
+  Built by <a href="https://pennypenguinapp-beep.github.io/" target="_blank" rel="noopener">LaunchTower</a> — free tools for pixel artists &amp; game devs.
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var dropzone = document.getElementById("dropzone");
+  var fileInput = document.getElementById("fileInput");
+  var dzLabel = document.getElementById("dzLabel");
+  var zoomEl = document.getElementById("zoom");
+  var heightEl = document.getElementById("height");
+  var shadeEl = document.getElementById("shade");
+  var zoomVal = document.getElementById("zoomVal");
+  var heightVal = document.getElementById("heightVal");
+  var shadeVal = document.getElementById("shadeVal");
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  var placeholder = document.getElementById("placeholder");
+  var downloadBtn = document.getElementById("downloadBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var statusEl = document.getElementById("status");
+
+  var src = null;      // HTMLImageElement of uploaded tile
+  var srcW = 0, srcH = 0;
+  var srcData = null;  // ImageData of the source (for pixel sampling)
+
+  function updateLabels() {
+    zoomVal.textContent = zoomEl.value + "×";
+    heightVal.textContent = heightEl.value + "%";
+    shadeVal.textContent = shadeEl.value + "%";
+  }
+
+  function loadImage(file) {
+    if (!file || !file.type || file.type.indexOf("image/") !== 0) {
+      statusEl.innerHTML = "Please choose an image file (PNG, JPG, GIF, WebP).";
+      return;
+    }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      src = img;
+      srcW = img.naturalWidth;
+      srcH = img.naturalHeight;
+      // sample pixels
+      var c = document.createElement("canvas");
+      c.width = srcW; c.height = srcH;
+      var cx = c.getContext("2d");
+      cx.drawImage(img, 0, 0);
+      srcData = cx.getImageData(0, 0, srcW, srcH).data;
+      URL.revokeObjectURL(url);
+      dropzone.classList.add("loaded");
+      dzLabel.textContent = file.name + " (" + srcW + "×" + srcH + ")";
+      downloadBtn.disabled = false;
+      render();
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      statusEl.innerHTML = "Could not read that image. Try a PNG or JPG.";
+    };
+    img.src = url;
+  }
+
+  function px(x, y) {
+    // sample source pixel (clamped), returns [r,g,b,a]
+    x = Math.max(0, Math.min(srcW - 1, x | 0));
+    y = Math.max(0, Math.min(srcH - 1, y | 0));
+    var i = (y * srcW + x) * 4;
+    return [srcData[i], srcData[i + 1], srcData[i + 2], srcData[i + 3]];
+  }
+
+  function render() {
+    if (!src) return;
+    var zoom = parseInt(zoomEl.value, 10);
+    var hFrac = parseInt(heightEl.value, 10) / 100;   // 0..1
+    var shade = parseInt(shadeEl.value, 10) / 100;    // 0..0.8
+
+    // isometric projection: 2:1 diamond.
+    // tile width in iso = srcW, tile height (top face) = srcW/2 * (srcH/srcW)
+    var isoW = srcW;
+    var isoTopH = (srcW / 2) * (srcH / srcW); // = srcH/2
+    var depth = isoW * hFrac;                 // vertical side height
+
+    // output canvas: width = isoW, height = isoTopH + depth
+    var outW = isoW * zoom;
+    var outH = Math.ceil((isoTopH + depth) * zoom);
+    canvas.width = outW;
+    canvas.height = outH;
+    canvas.hidden = false;
+    placeholder.style.display = "none";
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, outW, outH);
+
+    // We draw the iso projection by transforming the source image.
+    // The top face is the source image sheared into a 2:1 diamond:
+    //   top edge slants down-right, left edge slants down-left.
+    // We'll build it with a path-based approach: draw the source into
+    // an offscreen, then use canvas transforms to shear it into the diamond.
+
+    // Diamond vertices (in output px):
+    var cx = outW / 2;
+    var topY = 0;
+    var rightX = outW;
+    var midY = isoTopH * zoom;
+    var leftX = 0;
+    var botY = (isoTopH + depth) * zoom;
+
+    // --- Top face (sheared source image) ---
+    // Use a transform that maps the source rectangle onto the diamond.
+    // Diamond: top (cx, topY), right (rightX, midY), bottom (cx, midY + isoTopH*zoom - ...) 
+    // Actually the top face is a parallelogram: top(cx,topY), right(rightX, midY),
+    // bottom(cx, midY + isoTopH*zoom), left(leftX, midY).
+    var faceBotY = midY + isoTopH * zoom;
+
+    ctx.save();
+    // Map source (0,0)-(srcW,srcH) to parallelogram.
+    // We'll use setTransform: x' = a*x + c*y + e ; y' = b*x + d*y + f
+    // Source corners: (0,0)->top(cx,topY); (srcW,0)->right(rightX,midY);
+    //                 (0,srcH)->left(leftX,midY); (srcW,srcH)->bottom(cx,faceBotY)
+    // Solve: 
+    //   e = cx, f = topY
+    //   a*srcW = rightX - cx  => a = (rightX-cx)/srcW
+    //   b*srcW = midY - topY  => b = (midY-topY)/srcW
+    //   c*srcH = leftX - cx   => c = (leftX-cx)/srcH
+    //   d*srcH = midY - topY  => d = (midY-topY)/srcH
+    var a = (rightX - cx) / srcW;
+    var b = (midY - topY) / srcW;
+    var c = (leftX - cx) / srcH;
+    var d = (midY - topY) / srcH;
+    ctx.setTransform(a, b, c, d, cx, topY);
+    ctx.drawImage(src, 0, 0);
+    ctx.restore();
+
+    // --- Side faces (depth extrusion) ---
+    // Right side: parallelogram from right edge going down by depth.
+    // Vertices: right(rightX, midY), bottom(cx, faceBotY),
+    //           bottom+depth(cx, faceBotY+depth*zoom), right+depth(rightX, midY+depth*zoom)
+    // Left side: left(leftX, midY), bottom(cx, faceBotY),
+    //            bottom+depth(cx, faceBotY+depth*zoom), left+depth(leftX, midY+depth*zoom)
+    // We shade them by sampling the source's bottom/right rows and darkening.
+
+    function drawSide(p1, p2, p3, p4, sampleX, sampleY, factor) {
+      // p1,p2 = top edge; p3,p4 = bottom edge (p3 under p1, p4 under p2)
+      // We'll draw a gradient strip: sample a few source pixels along the edge
+      // and interpolate color, darkened by `factor`.
+      var steps = 64;
+      for (var s = 0; s < steps; s++) {
+        var t0 = s / steps;
+        var t1 = (s + 1) / steps;
+        // top edge points
+        var ax = p1[0] + (p2[0] - p1[0]) * t0;
+        var ay = p1[1] + (p2[1] - p1[1]) * t0;
+        var bx = p1[0] + (p2[0] - p1[0]) * t1;
+        var by = p1[1] + (p2[1] - p1[1]) * t1;
+        // bottom edge points
+        var cx2 = p3[0] + (p4[0] - p3[0]) * t0;
+        var cy2 = p3[1] + (p4[1] - p3[1]) * t0;
+        var dx = p3[0] + (p4[0] - p3[0]) * t1;
+        var dy = p3[1] + (p4[1] - p3[1]) * t1;
+        // sample source color at fractional position along the edge
+        var sx = sampleX(t0);
+        var sy = sampleY(t0);
+        var col = px(sx, sy);
+        var r = Math.round(col[0] * (1 - factor));
+        var g = Math.round(col[1] * (1 - factor));
+        var bl = Math.round(col[2] * (1 - factor));
+        var al = col[3] / 255;
+        if (al < 0.05) continue;
+        ctx.fillStyle = "rgba(" + r + "," + g + "," + bl + "," + al + ")";
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(dx, dy);
+        ctx.lineTo(cx2, cy2);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    var dz = depth * zoom;
+    // Right side: top edge right->bottom, bottom edge right+dz -> bottom+dz
+    drawSide(
+      [rightX, midY], [cx, faceBotY],
+      [rightX, midY + dz], [cx, faceBotY + dz],
+      function (t) { return srcW - 1 - t * 0; }, // right column
+      function (t) { return srcH - 1; },
+      shade
+    );
+    // Left side: top edge left->bottom, bottom edge left+dz -> bottom+dz
+    drawSide(
+      [leftX, midY], [cx, faceBotY],
+      [leftX, midY + dz], [cx, faceBotY + dz],
+      function (t) { return 0; }, // left column
+      function (t) { return srcH - 1; },
+      shade * 0.85 // left slightly lighter than right for depth cue
+    );
+
+    statusEl.innerHTML = "Source <b>" + srcW + "×" + srcH + "</b> → ISO output <b>" + outW + "×" + outH + "</b> px · zoom " + zoom + "× · depth " + heightEl.value + "%";
+  }
+
+  // --- Events ---
+  dropzone.addEventListener("click", function () { fileInput.click(); });
+  dropzone.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener("change", function () {
+    if (fileInput.files && fileInput.files[0]) loadImage(fileInput.files[0]);
+  });
+  ["dragenter", "dragover"].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault(); e.stopPropagation();
+      dropzone.classList.add("dragover");
+    });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault(); e.stopPropagation();
+      dropzone.classList.remove("dragover");
+    });
+  });
+  dropzone.addEventListener("drop", function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadImage(f);
+  });
+  // also allow dropping anywhere on the stage
+  var stage = document.getElementById("stage");
+  stage.addEventListener("dragover", function (e) { e.preventDefault(); });
+  stage.addEventListener("drop", function (e) {
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadImage(f);
+  });
+
+  [zoomEl, heightEl, shadeEl].forEach(function (el) {
+    el.addEventListener("input", function () { updateLabels(); render(); });
+  });
+
+  downloadBtn.addEventListener("click", function () {
+    if (!src) return;
+    var a = document.createElement("a");
+    a.download = "iso-tile-preview.png";
+    a.href = canvas.toDataURL("image/png");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+
+  resetBtn.addEventListener("click", function () {
+    src = null; srcData = null;
+    fileInput.value = "";
+    dropzone.classList.remove("loaded");
+    dzLabel.textContent = "Drop a tile / map image";
+    downloadBtn.disabled = true;
+    canvas.hidden = true;
+    canvas.width = 0; canvas.height = 0;
+    placeholder.style.display = "";
+    statusEl.innerHTML = "";
+  });
+
+  updateLabels();
+})();
+</script>
+</body>
+</html>
